@@ -529,6 +529,133 @@ Tom has access to `greet()` even though the method does not exists directly on t
 
 You might have read the term "prototypal inheritance" in dozens of tutorials. I see a lot of JavaScript developers confused by "prototypal inheritance". It's simpler than you think: there is no "prototypal inheritance" in JavaScript. Just forget that sentence and remember that JavaScript objects are most of the times linked to other objects. It's a link. There is no inheritance.
 
+## Protecting objects from manipulation
+
+Most of the times it's fine to keep JavaScript objects "extensible", that is, making possible for other developers to add new properties to an object. But there are situations when you want to protect an object from further manipulation. Consider a simple object:
+
+```js
+var superImportantObject = {
+  property1: "some string",
+  property2: "some other string"
+};
+```
+
+By default everybody can add new properties to that object:
+
+```js
+var superImportantObject = {
+  property1: "some string",
+  property2: "some other string"
+};
+
+superImportantObject.anotherProperty = "Hei!";
+
+console.log(superImportantObject.anotherProperty); // Hei!
+```
+
+Now suppose you want to protect the object from new additions: in jargon you want to prevent "extensions" to the object. You can call `Object.preventExtensions` on it:
+
+```js
+var superImportantObject = {
+  property1: "some string",
+  property2: "some other string"
+};
+
+Object.preventExtensions(superImportantObject);
+
+superImportantObject.anotherProperty = "Hei!";
+
+console.log(superImportantObject.anotherProperty); // undefined
+```
+
+This technique is handy for "protecting" critical objects in your code. There are also a lot of pre-made objects in JavaScript that are closed for extension, thus preventing developers from adding new properties on them. That's the case of "important" objects like the response of an XMLHttpRequest. Browser vendors forbid the addition of new properties on the response object:
+
+```js
+var request = new XMLHttpRequest();
+request.open("GET", "https://jsonplaceholder.typicode.com/posts");
+request.send();
+request.onload = function() {
+  this.response.arbitraryProp = "messing with youuu";
+  console.log(this.response.arbitraryProp); // undefined
+};
+```
+
+That's done by calling `Object.preventExtensions` internally on the "response" object. You can also check whether a JavaScript object is protected with the `Object.isExtensible` method. It will return `true` if the object is extensible:
+
+```js
+var superImportantObject = {
+  property1: "some string",
+  property2: "some other string"
+};
+
+Object.isExtensible(superImportantObject) && console.log("Open for extension!");
+```
+
+or `false` if it is not:
+
+```js
+var superImportantObject = {
+  property1: "some string",
+  property2: "some other string"
+};
+
+Object.preventExtensions(superImportantObject);
+
+Object.isExtensible(superImportantObject) ||
+  console.log("Closed for extension!");
+```
+
+Of course existing properties of the object can be changed or even deleted:
+
+```js
+var superImportantObject = {
+  property1: "some string",
+  property2: "some other string"
+};
+
+Object.preventExtensions(superImportantObject);
+
+delete superImportantObject.property1;
+
+superImportantObject.property2 = "yeees";
+
+console.log(superImportantObject); // { property2: 'yeees' }
+```
+
+Now, to prevent this sort of manipulation you could always define each property as not writable and not configurable. And for that there is a method called `Object.defineProperties`:
+
+```js
+var superImportantObject = {};
+
+Object.defineProperties(superImportantObject, {
+  property1: {
+    configurable: false,
+    writable: false,
+    enumerable: true,
+    value: "some string"
+  },
+  property2: {
+    configurable: false,
+    writable: false,
+    enumerable: true,
+    value: "some other string"
+  }
+});
+```
+
+Or, more conveniently you can use `Object.freeze` on the original object:
+
+```js
+var superImportantObject = {
+  property1: "some string",
+  property2: "some other string"
+};
+
+Object.freeze(superImportantObject);
+```
+
+`Object.freeze` does the same job of `Object.preventExtensions`, plus it makes all the object's properties not writable and not configurable. The only drawback is that "freezing" works only on the first level of the object: nested object won't be affected by the operation.
+
 And now having shed some light on JavaScript objects, let's talk a bit about ES6 classes. What are they, really?
 
 ## Class illusion
