@@ -384,7 +384,7 @@ Person.prototype.greet = function() {
 var me = new Person("Valentino");
 me.greet();
 
-// Output: "Valentino"
+// Output: "Hello Valentino"
 ```
 
 Note that now you need to prefix the function call with `new`. That's called "constructor call" and it's the "standard" syntax for creating new shape of objects in JavaScript. In other words, new does all the hard work for us:
