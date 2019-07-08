@@ -139,4 +139,43 @@ Strict mode makes your JavaScript code more secure and (almost) free from silly 
 
 ## Rule number 2: implicit binding
 
-coming soon
+"Implicit binding" is an intimidating term, but the theory behind it is not so complicated. It all narrows down to objects. It's no surprise that JavaScript objects can contain functions:
+
+```js
+var widget = {
+  items: ["a", "b", "c"],
+  printItems: function() {
+    console.log(this.items);
+  }
+};
+```
+
+When a function is assigned as an object's property then that object becomes the "home" in which the function runs. In other words the `this` keyword inside the function will point automatically to that object. That's rule number 2 of `this` in JavaScript and goes under the name of **implicit binding**. Implicit binding is in action even when we call a function in the global context:
+
+```js
+function whoIsThis() {
+  console.log(this);
+}
+
+whoIsThis();
+```
+
+You can't tell from the code but the JavaScript engine assigns the function to a new property on the global object `window`. Under the hood it's like:
+
+```js
+window.whoIsThis = function() {
+  console.log(this);
+};
+```
+
+You can easily confirm the assumption. Run the following code in a browser:
+
+```js
+function whoIsThis() {
+  console.log(this);
+}
+
+console.log(typeof window.whoIsThis)
+```
+
+and you'll get back "function". And this point you might be asking: what's the real rule for `this` inside a global function? It's called default binding but in reality is more like of an implicit binding. Confusing right? It's JavaScript after all! Just remember that the JavaScript engine always falls back to the global `this` when in doubt about the context (default binding). On the other hand when a function is defined inside a JavaScript object and is called as part of that object then there is no other way around: `this` refers to the host object (implicit binding). And now let's see what is the third rule for `this` in JavaScript.
