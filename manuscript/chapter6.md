@@ -179,3 +179,220 @@ console.log(typeof window.whoIsThis)
 ```
 
 and you'll get back "function". And this point you might be asking: what's the real rule for `this` inside a global function? It's called default binding but in reality is more like of an implicit binding. Confusing right? It's JavaScript after all! Just remember that the JavaScript engine always falls back to the global `this` when in doubt about the context (default binding). On the other hand when a function is defined inside a JavaScript object and is called as part of that object then there is no other way around: `this` refers to the host object (implicit binding). And now let's see what is the third rule for `this` in JavaScript.
+
+## Rule number 3: explicit binding
+
+There is no JavaScript developer that at some point in her/his career didn't see code like this:
+
+```js
+someObject.call(anotherObject);
+Someobject.prototype.someMethod.apply(someOtherObject);
+```
+
+That's **explicit binding** in action. Another example of binding: with the rise of React as the UI library of choice it is common to see class methods "bound" to the class itself (more on that later):
+
+```js
+class Button extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { text: "" };
+    // bounded method
+    this.handleClick = this.handleClick.bind(this);
+  }
+
+  handleClick() {
+    this.setState(() => {
+      return { text: "PROCEED TO CHECKOUT" };
+    });
+  }
+
+  render() {
+    return (
+      <button onClick={this.handleClick}>
+        {this.state.text || this.props.text}
+      </button>
+    );
+  }
+}
+```
+
+Nowadays React hooks make classes almost unnecessary, yet there are a lot of "legacy" React components out there using ES2015 classes. One of the question most beginners ask is why we re-bind class methods in React with "bind"? Those three methods, `call`, `apply`, `bind` belong to `Function.prototype` and are used for the so called **explicit binding** (rule number 3). It's in the name: explicit binding means taking a function and forcing its home, also called context object, to be one provided by you. But why would I explicitly bind or re-bind a function? Consider some legacy JavaScript code wrote by a fictional, less JavaScript-savvy colleague some years ago:
+
+```js
+var legacyWidget = {
+  html: "",
+  init: function() {
+    this.html = document.createElement("div");
+  },
+  showModal: function(htmlElement) {
+    var newElement = document.createElement(htmlElement);
+    this.html.appendChild(newElement);
+    window.document.body.appendChild(this.html);
+  }
+};
+```
+
+`showModal` is a "method" bound to the object `legacyWidget`. It is implicitly bound (rule number 2), almost useless because apparently there is no way to change the HTML element (`this.html`) on which the modal should append the new element. `this.html` is hardcoded inside the method. No worries, we can resort to explicit binding for altering the `this` object on which `showModal` runs. It is a job for `call` which takes the new context object and a list of optional arguments. Now we can create a new "shiny" widget and provide a different HTML element as the starting point:
+
+```js
+var legacyWidget = {
+  html: "",
+  init: function() {
+    this.html = document.createElement("div");
+  },
+  showModal: function(htmlElement) {
+    var newElement = document.createElement(htmlElement);
+    this.html.appendChild(newElement);
+    window.document.body.appendChild(this.html);
+  }
+};
+
+var shinyNewWidget = {
+  html: "",
+  init: function() {
+    // A different HTML element
+    this.html = document.createElement("section");
+  }
+};
+```
+
+At this point you can call `call` on the original method:
+
+```js
+var legacyWidget = {
+  html: "",
+  init: function() {
+    this.html = document.createElement("div");
+  },
+  showModal: function(htmlElement) {
+    var newElement = document.createElement(htmlElement);
+    this.html.appendChild(newElement);
+    window.document.body.appendChild(this.html);
+  }
+};
+
+var shinyNewWidget = {
+  html: "",
+  init: function() {
+    this.html = document.createElement("section");
+  }
+};
+
+// Initialize the new widget with a different HTML element
+shinyNewWidget.init();
+
+// Run the original method with a new context object
+legacyWidget.showModal.call(shinyNewWidget, "p");
+```
+
+If you're still confused about explicit binding think of it like a primitive style for reusing code. It looks hacky and buggy to me but that's the best you can do if you've got legacy JavaScript code to refactor. Also, the prototype system is a better candidate for structuring the above code but believe me, bad software like that still exists in production today. At this point you may wonder what `apply` and `bind` are. `apply` has the same effect of using `call` except that the former accepts an array of parameters while the latter expects the parameters to be given as a list. In other words `call` works with a list of parameters:
+
+```js
+var obj = {
+  version: "0.0.1",
+  printParams: function(param1, param2, param3) {
+    console.log(this.version, param1, param2, param3);
+  }
+};
+
+var newObj = {
+  version: "0.0.2"
+};
+
+obj.printParams.call(newObj, "aa", "bb", "cc");
+```
+
+While `apply` expects an array of parameters:
+
+```js
+var obj = {
+  version: "0.0.1",
+  printParams: function(param1, param2, param3) {
+    console.log(this.version, param1, param2, param3);
+  }
+};
+
+var newObj = {
+  version: "0.0.2"
+};
+
+obj.printParams.apply(newObj, ["aa", "bb", "cc"]);
+```
+
+And what about `bind`? That's the most powerful method for binding functions. `bind` still takes a new context object for a given function but it does not just call the function int the new context object. It returns a new function bound to that object permanently:
+
+```js
+var obj = {
+  version: "0.0.1",
+  printParams: function(param1, param2, param3) {
+    console.log(this.version, param1, param2, param3);
+  }
+};
+
+var newObj = {
+  version: "0.0.2"
+};
+
+var newFunc = obj.printParams.bind(newObj);
+
+newFunc("aa", "bb", "cc");
+```
+
+A common use case for `bind` is a permanent re-binding of an original function:
+
+```js
+var obj = {
+  version: "0.0.1",
+  printParams: function(param1, param2, param3) {
+    console.log(this.version, param1, param2, param3);
+  }
+};
+
+var newObj = {
+  version: "0.0.2"
+};
+
+obj.printParams = obj.printParams.bind(newObj);
+
+obj.printParams("aa", "bb", "cc");
+```
+
+From now on `obj.printParams` will always refer `newObj` as the object in which the function is running. At this point should be clear why we re-bind class methods in React with `bind`:
+
+```js
+class Button extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { text: "" };
+    this.handleClick = this.handleClick.bind(this);
+  }
+
+  handleClick() {
+    this.setState(() => {
+      return { text: "PROCEED TO CHECKOUT" };
+    });
+  }
+
+  render() {
+    return (
+      <button onClick={this.handleClick}>
+        {this.state.text || this.props.text}
+      </button>
+    );
+  }
+}
+```
+
+When we assign a class method to a React element the method "thinks": "I should run in the context of that element". React elements in fact are nothing more than JavaScript objects. When a function runs inside an object then that object becomes its "home" and the implicit `this` binding kicks in. In the example above the method `handleClick` (assigned to a button element) tries to update the component's state by calling `this.setState()`. When called the method runs in the context of the button element which is no longer the class itself and you get the dreaded "TypeError: Cannot read property 'setState' of undefined". We say that the function loses its binding. React components are most of the times exported as ES2015 modules: `this` is `undefined` because ES modules use strict mode by default, thus disabling the default binding. To solve the problem we use `bind` for making the method stick to the right context, the class itself:
+
+```js
+  constructor(props) {
+    this.handleClick = this.handleClick.bind(this);
+  }
+```
+
+Explicit binding is stronger than both implicit binding and default binding. With `apply`, `call`, and `bind` we can bend `this` at our own will by providing a dynamic context object to our functions. If "context object" is still too abstract for you think of it as a box in which JavaScript functions run. The box is always there, but we can change its coordinates at any time with an explicit bind.
+
+## Rule number 4: "new" binding
+
+COMING SOON
